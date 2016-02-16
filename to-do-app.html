@@ -13,6 +13,9 @@
     #todoapp ul {
       list-style-type: none;
     }
+    #todoapp .sm {
+      font-size: 12px;
+    }
   </style>  
 </head>
 <body>
@@ -24,9 +27,15 @@
     <header id="header">
       <h1>Todos</h1>
       <input id="new-todo" placeholder="What needs to be done?" autofocus>
+      <input id="new-todo-duedate" placeholder="When is it due?">
     </header>
     <section id="main">
       <ul id="todo-list"></ul>
+    </section>
+    <section id="buttons">
+      <input type="button" id="add-todo" value="Add">
+      <input type="button" id="reset-todo" value="Reset">
+      <input type="button" id="clear-collection" value="Clear List">
     </section>
   </section>
 
@@ -34,7 +43,8 @@
   <script type="text/template" id="item-template">
     <div class="view">
       <input class="toggle" type="checkbox">
-      <label><%- title %></label>
+      <label>Task: <%- title %></label>
+      <label class="sm">Due: <%- due_date %></label>
     </div>
   </script>  
 
@@ -60,6 +70,7 @@
     app.Todo = Backbone.Model.extend({
       defaults: {
         title: '',
+        due_date: '',
         completed: false
       }
     });
@@ -93,24 +104,43 @@
     app.AppView = Backbone.View.extend({
       el: '#todoapp',
       initialize: function () {
+
         this.input = this.$('#new-todo');
+        this.date_input = this.$('#new-todo-duedate');
+
         app.todoList.on('add', this.addAll, this);
         app.todoList.on('reset', this.addAll, this);
         app.todoList.fetch(); // Loads list from local storage
       },
       events: {
-        'keypress #new-todo': 'createTodoOnEnter'
+        'keypress #new-todo': 'createTodoOnEnter',
+        'keypress #new-todo-duedate': 'createTodoOnEnter',
+        'click #add-todo' : 'createTodoWithButton',
+        'click #reset-todo' : 'cleanInputs',
+        'click #clear-collection': 'clearCollection'
       },
       createTodoOnEnter: function(e){
         if ( e.which !== 13 || !this.input.val().trim() ) { // ENTER_KEY = 13
           return;
         }
         app.todoList.create(this.newAttributes());
-        this.input.val(''); // clean input box
+        this.cleanInputs();
+      },
+      createTodoWithButton: function(){
+        app.todoList.create(this.newAttributes());
+        this.cleanInputs();
+      },
+      clearCollection: function(){
+        // most reliable way to empty a collection - clone then destroy #http://www.bar54.de/2013/11/backbone-js-empty-collection-and-localstorage/
+        _.chain(app.todoList.models).clone().each(function(model){
+          model.destroy();
+        });
+        app.todoList.reset();
       },
       addOne: function(todo){
         var view = new app.TodoView({model: todo});
         $('#todo-list').append(view.render().el);
+        this.input.focus();
       },
       addAll: function(){
         this.$('#todo-list').html(''); // clean the todo list
@@ -119,8 +149,13 @@
       newAttributes: function(){
         return {
           title: this.input.val().trim(),
+          due_date: this.date_input.val().trim(),
           completed: false
         }
+      },
+      cleanInputs: function(){
+        this.input.val(''); // clean input box
+        this.date_input.val(''); // clean date input box
       }
     });
 
