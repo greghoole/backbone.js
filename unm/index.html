@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <title>Boston Web Development, Website Development, Website Design, Internet Consulting | Ultimate New Media, Inc</title>
+  <meta http-equiv="description" content="Boston Web Development, Website Development, Web Development, Website Design, Boston Website Company, Web development Boston, Web Design boston, Web Development Massachusetts">
+  <meta http-equiv="keywords" content="Boston Web Development, Website Development, Website Design, Internet Consulting, Internet consultation services serving small, mid size and large businesses.">
+  <meta name="robots" content="index,follow">
+  <meta name="robot" content="index,follow">
+  <meta name="author" content="Ultimate New Media, Inc">
+  <meta name="copyright" content="Copyright 2016 - Ultimate New Media, Inc">
+  <meta name="language" content="English">
+  <meta name="distribution" content="global">
+  <meta name="rating" content="general">
+  
+  <!-- ========= -->
+  <!--    CSS    -->
+  <!-- ========= -->
+  <style type="text/css">
+    #header {
+      text-align: center;
+    }
+    #header img {
+      padding: 10px 0;
+    }
+    #navigation a {
+      font-family: Arial;
+      font-size: 12px;
+      text-decoration: none;
+    }
+    #navigation a::before {
+      content: '#';
+    }
+    #navigation a:hover {
+      text-decoration: underline;
+    }
+    #portfolio ul {
+      list-style-type: none;
+    }
+    #portfolio ul li {
+      padding: 10px;
+      margin: 5px;
+      width: 30%;
+      height: 200px;
+      border: 1px solid black;
+      float: left;
+    }
+    #portfolio ul li .categories span::before {
+      content: '#';
+    }
+  </style>  
+</head>
+<body>
+
+  <section id="portfolio">
+    <header id="header">
+      <img src="images/unm-logo.jpg">
+      <div id="navigation">
+        <a href="#/">all</a> |
+        <a href="#/asp">classic asp</a> |
+        <a href="#/custom">custom</a> |
+        <a href="#/drupal">drupal</a> |
+        <a href="#/ee">expression engine</a> |
+        <a href="#/joomla">joomla</a> |
+        <a href="#/magento">magento</a> |
+        <a href="#/mobile">mobile</a> |
+        <a href="#/wordpress">wordpress</a> |
+        <a href="#/zend-framework">zend framework</a>
+      </div>      
+    </header>
+    <section id="main">
+      <ul id="portfolio-list"><!-- will hold the portfolio items --></ul>
+    </section>
+  </section>
+
+  <!-- ========= -->
+  <!-- Templates -->
+  <!-- ========= -->
+  <script type="text/template" id="item-template">
+    <div class="view">
+      <h2><%- title %></h2>
+      <a href="<%- link %>"><%- link %></a>
+      <div class="image"><%- image %></div>
+      <div class="description"><%- description %></div>
+      <div class="categories">
+        <% for(var idx in categories) { %>
+           <span><%- categories[idx] %></span>
+        <% } %>
+      </div>
+    </div>
+  </script>  
+
+  <!-- ========= -->
+  <!-- Libraries -->
+  <!-- ========= -->
+  <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js" type="text/javascript"></script>
+  <script src="http://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.3.3/underscore-min.js" type="text/javascript"></script>
+  <script src="http://cdnjs.cloudflare.com/ajax/libs/backbone.js/0.9.2/backbone-min.js" type="text/javascript"></script>
+  <script src="http://cdnjs.cloudflare.com/ajax/libs/backbone-localstorage.js/1.0/backbone.localStorage-min.js" type="text/javascript"></script> 
+
+  <!-- Move to DB eventually -->
+  <script src="data/portfolio-items.js"></script>
+
+  <!-- =============== -->
+  <!-- Javascript Code -->
+  <!-- =============== -->
+  <script type="text/javascript">
+    'use strict';
+
+    var unm = {}; // create namespace for our app
+    
+    //--------------
+    // Models
+    //
+    // A custom model for the portfolio items
+    //--------------
+    unm.PortfolioItem = Backbone.Model.extend({
+      defaults : {
+        title : '',
+        link : '',
+        image : '',
+        description : '',
+        categories : []
+      }
+    });
+
+    //--------------
+    // Collections
+    //
+    // Defining a collection using the custom model. Set storage type
+    // and any custom filters here
+    //--------------
+    unm.PortfolioList = Backbone.Collection.extend({
+      model: unm.PortfolioItem,
+      localStorage: new Store("backbone-portfolio"),
+      comparator: function(item) {
+        return item.get('title');
+      },
+      byCategory: function(category) {
+        var filtered = this.models.filter(function(item){
+          return _.contains(item.get('categories'), category);
+        });
+        return filtered;
+      }
+    });
+
+    // instance of our Collection
+    unm.PortfolioList = new unm.PortfolioList();
+
+    //--------------
+    // Views
+    //--------------
+    
+    // renders individual PortfolioItem items list (li)
+    unm.PortfolioView = Backbone.View.extend({
+      tagName: 'li',
+      template: _.template($('#item-template').html()),
+      render: function(){
+        this.$el.html(this.template(this.model.toJSON()));
+        return this; // enable chained calls
+      },
+      initialize: function(){
+        // none
+      },      
+      events: {
+        // none
+      }
+    });
+
+    // renders the full list of PortfolioItem items calling PortfolioView for each one
+    unm.AppView = Backbone.View.extend({
+      el: '#portfolio',
+      initialize: function () {
+        this.loadAll();
+        unm.PortfolioList.on('reset', this.addAll, this);
+      },
+      events: {
+        // none
+      },
+      addOne: function(portfolioItem){
+        var view = new unm.PortfolioView({model: portfolioItem});
+        $('#portfolio-list').append(view.render().el);
+      },
+      addAll: function(){
+        this.$('#portfolio-list').html('');
+
+        // filter list
+        if(window.filter){
+          _.each(unm.PortfolioList.byCategory(window.filter), this.addOne);
+        } else {
+          unm.PortfolioList.each(this.addOne, this);
+        }
+      },
+      loadAll: function(){
+        this.clearCollection();
+
+        var idx, len;
+        // load data to local storage
+        for (idx = 0, len = items.length; idx < len; ++idx) {
+          var item = new unm.PortfolioItem(items[idx]);
+          unm.PortfolioList.create(item);
+        };
+
+        this.addAll();
+      },
+      clearCollection: function(){
+        // most reliable way to empty a collection - clone then destroy #http://www.bar54.de/2013/11/backbone-js-empty-collection-and-localstorage/
+        _.chain(unm.PortfolioList.models).clone().each(function(model){
+          model.destroy();
+        });
+      },
+    });
+
+    //--------------
+    // Routers
+    //--------------
+    
+    unm.Router = Backbone.Router.extend({
+      routes: {
+        '*filter' : 'setFilter'
+      },
+      setFilter: function(params) {
+        window.filter = params.trim() || '';
+        unm.PortfolioList.trigger('reset');
+      }
+    });     
+
+    //--------------
+    // Initializers
+    //--------------   
+
+    unm.router = new unm.Router();
+    Backbone.history.start();    
+    unm.appView = new unm.AppView(); 
+
+  </script>
+  
+</body>
+</html>
